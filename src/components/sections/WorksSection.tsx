@@ -1,34 +1,67 @@
-import { useState } from 'react'
-import { workImages } from '../../data/works'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { galleryWorksMeta } from '../../data/galleryWorksMeta'
+import { type WorkImage, workImages } from '../../data/works'
 import Button from '../ui/Button'
 import Container from '../ui/Container'
 import Section from '../ui/Section'
 import SectionTitle from '../ui/SectionTitle'
 
-const galleryImageModules = import.meta.glob('../../assets/images/Fotos perritos jpg/*.{jpg,jpeg,png,PNG,JPG,JPEG}', {
+const galleryFullModules = import.meta.glob('../../assets/images/optimized/works/full/gallery-*.webp', {
   eager: true,
   import: 'default',
   query: '?url',
 })
 
-const galleryImages = Object.entries(galleryImageModules)
-  .sort(([firstPath], [secondPath]) => {
-    const featuredGalleryImage = 'IMG_5607.PNG'
+const galleryThumbModules = import.meta.glob('../../assets/images/optimized/works/thumbs/gallery-*.webp', {
+  eager: true,
+  import: 'default',
+  query: '?url',
+})
 
-    if (firstPath.endsWith(featuredGalleryImage)) {
-      return -1
-    }
+const preloadedImages = new Set<string>()
 
-    if (secondPath.endsWith(featuredGalleryImage)) {
-      return 1
-    }
+function getGalleryAssetUrl(
+  modules: Record<string, unknown>,
+  folder: 'full' | 'thumbs',
+  fileName: string,
+) {
+  const src = modules[`../../assets/images/optimized/works/${folder}/${fileName}`]
 
-    return firstPath.localeCompare(secondPath)
-  })
-  .map(([path, src]) => ({
-    src: src as string,
-    alt: `Trabajo realizado en TE VES GUAUU - ${path.split('/').pop() ?? 'foto'}`,
-  }))
+  if (typeof src !== 'string') {
+    throw new Error(`No se encontro la imagen optimizada: ${fileName}`)
+  }
+
+  return src
+}
+
+function preloadImage(src?: string) {
+  if (!src || preloadedImages.has(src)) {
+    return
+  }
+
+  preloadedImages.add(src)
+  const image = new Image()
+  image.src = src
+}
+
+function preloadNearbyImages(images: WorkImage[], index: number) {
+  const previousIndex = index === 0 ? images.length - 1 : index - 1
+  const nextIndex = index === images.length - 1 ? 0 : index + 1
+
+  preloadImage(images[index]?.src)
+  preloadImage(images[previousIndex]?.src)
+  preloadImage(images[nextIndex]?.src)
+}
+
+const galleryImages: WorkImage[] = galleryWorksMeta.map((image) => ({
+  src: getGalleryAssetUrl(galleryFullModules, 'full', image.fullFile),
+  thumbnailSrc: getGalleryAssetUrl(galleryThumbModules, 'thumbs', image.thumbFile),
+  alt: `Trabajo realizado en TE VES GUAUU - ${image.fileName}`,
+  width: image.width,
+  height: image.height,
+  thumbnailWidth: image.thumbWidth,
+  thumbnailHeight: image.thumbHeight,
+}))
 
 const secondaryImagePositionClasses = [
   'object-[center_35%]',
@@ -39,46 +72,127 @@ const secondaryImagePositionClasses = [
 
 const secondaryImageScaleClasses = ['', '', '', 'scale-[1.18]']
 
+function getImagesForGroup(group: 'featured' | 'gallery') {
+  return group === 'featured' ? workImages : galleryImages
+}
+
 function WorksSection() {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
   const [selectedImageGroup, setSelectedImageGroup] = useState<'featured' | 'gallery'>('gallery')
+  const [isImageLoading, setIsImageLoading] = useState(true)
+  const [hasImageError, setHasImageError] = useState(false)
+  const [isLightboxClosing, setIsLightboxClosing] = useState(false)
+  const lightboxCloseTimeoutRef = useRef<number | null>(null)
   const [featuredImage, ...secondaryImages] = workImages
+  const selectedImages = getImagesForGroup(selectedImageGroup)
+  const selectedImage = selectedImageIndex !== null ? selectedImages[selectedImageIndex] : null
 
   function openLightbox(index: number, group: 'featured' | 'gallery') {
+    const images = getImagesForGroup(group)
+
+    if (lightboxCloseTimeoutRef.current) {
+      window.clearTimeout(lightboxCloseTimeoutRef.current)
+    }
+
+    preloadNearbyImages(images, index)
+    setIsLightboxClosing(false)
+    setIsImageLoading(true)
+    setHasImageError(false)
     setSelectedImageGroup(group)
     setSelectedImageIndex(index)
   }
 
-  function closeLightbox() {
-    setSelectedImageIndex(null)
-  }
+  const closeLightbox = useCallback(() => {
+    setIsLightboxClosing(true)
+    lightboxCloseTimeoutRef.current = window.setTimeout(() => {
+      setSelectedImageIndex(null)
+      setIsLightboxClosing(false)
+      lightboxCloseTimeoutRef.current = null
+    }, 180)
+  }, [])
 
   function showPreviousImage() {
+    setIsImageLoading(true)
+    setHasImageError(false)
     setSelectedImageIndex((currentIndex) => {
       if (currentIndex === null) {
         return currentIndex
       }
 
-      const images = selectedImageGroup === 'featured' ? workImages : galleryImages
-
-      return currentIndex === 0 ? images.length - 1 : currentIndex - 1
+      return currentIndex === 0 ? selectedImages.length - 1 : currentIndex - 1
     })
   }
 
   function showNextImage() {
+    setIsImageLoading(true)
+    setHasImageError(false)
     setSelectedImageIndex((currentIndex) => {
       if (currentIndex === null) {
         return currentIndex
       }
 
-      const images = selectedImageGroup === 'featured' ? workImages : galleryImages
-
-      return currentIndex === images.length - 1 ? 0 : currentIndex + 1
+      return currentIndex === selectedImages.length - 1 ? 0 : currentIndex + 1
     })
   }
 
-  const selectedImages = selectedImageGroup === 'featured' ? workImages : galleryImages
+  useEffect(() => {
+    if (!isGalleryOpen && selectedImageIndex === null) {
+      return
+    }
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [isGalleryOpen, selectedImageIndex])
+
+  useEffect(() => {
+    if (selectedImageIndex === null) {
+      return
+    }
+
+    const images = getImagesForGroup(selectedImageGroup)
+    preloadNearbyImages(images, selectedImageIndex)
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeLightbox()
+      }
+
+      if (event.key === 'ArrowLeft') {
+        setIsImageLoading(true)
+        setHasImageError(false)
+        setSelectedImageIndex((currentIndex) => {
+          if (currentIndex === null) {
+            return currentIndex
+          }
+
+          return currentIndex === 0 ? images.length - 1 : currentIndex - 1
+        })
+      }
+
+      if (event.key === 'ArrowRight') {
+        setIsImageLoading(true)
+        setHasImageError(false)
+        setSelectedImageIndex((currentIndex) => {
+          if (currentIndex === null) {
+            return currentIndex
+          }
+
+          return currentIndex === images.length - 1 ? 0 : currentIndex + 1
+        })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [closeLightbox, selectedImageGroup, selectedImageIndex])
 
   return (
     <Section id="trabajos" className="relative overflow-hidden bg-white">
@@ -100,10 +214,16 @@ function WorksSection() {
             type="button"
             className="group aspect-square w-full overflow-hidden rounded-[28px] shadow-[0_16px_40px_rgba(247,175,197,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E85A93]"
             onClick={() => openLightbox(0, 'featured')}
+            onMouseEnter={() => preloadNearbyImages(workImages, 0)}
+            onTouchStart={() => preloadNearbyImages(workImages, 0)}
           >
             <img
-              src={featuredImage.src}
+              src={featuredImage.thumbnailSrc}
               alt={featuredImage.alt}
+              width={featuredImage.thumbnailWidth}
+              height={featuredImage.thumbnailHeight}
+              loading="lazy"
+              decoding="async"
               className="h-full w-full bg-[#FFF8FA] object-contain transition duration-200 group-hover:scale-[1.02]"
             />
           </button>
@@ -115,10 +235,16 @@ function WorksSection() {
                 type="button"
                 className="group aspect-square overflow-hidden rounded-[24px] shadow-[0_14px_34px_rgba(247,175,197,0.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E85A93]"
                 onClick={() => openLightbox(index + 1, 'featured')}
+                onMouseEnter={() => preloadNearbyImages(workImages, index + 1)}
+                onTouchStart={() => preloadNearbyImages(workImages, index + 1)}
               >
                 <img
-                  src={image.src}
+                  src={image.thumbnailSrc}
                   alt={image.alt}
+                  width={image.thumbnailWidth}
+                  height={image.thumbnailHeight}
+                  loading="lazy"
+                  decoding="async"
                   className={`h-full w-full object-cover transition duration-200 group-hover:scale-[1.03] ${
                     secondaryImagePositionClasses[index] ?? 'object-center'
                   } ${secondaryImageScaleClasses[index] ?? ''}`}
@@ -184,11 +310,16 @@ function WorksSection() {
                   type="button"
                   className="group overflow-hidden rounded-[18px] shadow-[0_10px_24px_rgba(247,175,197,0.2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E85A93]"
                   onClick={() => openLightbox(index, 'gallery')}
+                  onMouseEnter={() => preloadNearbyImages(galleryImages, index)}
+                  onTouchStart={() => preloadNearbyImages(galleryImages, index)}
                 >
                   <img
-                    src={image.src}
+                    src={image.thumbnailSrc}
                     alt={image.alt}
-                    loading="lazy"
+                    width={image.thumbnailWidth}
+                    height={image.thumbnailHeight}
+                    loading={index < 3 ? 'eager' : 'lazy'}
+                    decoding="async"
                     className="aspect-square w-full object-cover transition duration-200 group-hover:scale-[1.04]"
                   />
                 </button>
@@ -198,9 +329,11 @@ function WorksSection() {
         </div>
       )}
 
-      {selectedImageIndex !== null && (
+      {selectedImage ? (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 px-4 py-6"
+          className={`fixed inset-0 z-[90] flex items-center justify-center bg-black/85 px-3 py-4 backdrop-blur-sm transition-opacity duration-200 sm:px-6 sm:py-6 ${
+            isLightboxClosing ? 'opacity-0' : 'opacity-100'
+          }`}
           role="dialog"
           aria-modal="true"
           aria-label="Foto ampliada de trabajo realizado"
@@ -208,7 +341,7 @@ function WorksSection() {
         >
           <button
             type="button"
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-3xl font-bold text-white transition duration-200 hover:bg-black/70"
+            className="absolute right-4 top-4 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-3xl font-light text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-200 hover:scale-[1.08] hover:bg-black/60"
             aria-label="Cerrar foto ampliada"
             onClick={(event) => {
               event.stopPropagation()
@@ -218,16 +351,56 @@ function WorksSection() {
             ×
           </button>
 
-          <div className="relative" onClick={(event) => event.stopPropagation()}>
+          <div
+            className="relative inline-flex max-h-[88vh] max-w-[90vw] items-center justify-center"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {(isImageLoading || hasImageError) && (
+              <div className="absolute left-1/2 top-1/2 z-10 flex min-h-[180px] min-w-[220px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-3 rounded-[18px] bg-black/35 px-6 text-center text-white shadow-[0_16px_42px_rgba(0,0,0,0.18)] backdrop-blur-md">
+                {hasImageError ? (
+                  <>
+                    <p className="text-sm font-bold text-white">
+                      No pudimos cargar esta imagen.
+                    </p>
+                    <button
+                      type="button"
+                      className="rounded-full bg-white/85 px-5 py-2 text-sm font-bold text-[#2B2B2B] transition duration-200 hover:bg-white"
+                      onClick={closeLightbox}
+                    >
+                      Cerrar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/35 border-t-white" />
+                    <p className="text-sm font-bold text-white">Cargando imagen...</p>
+                  </>
+                )}
+              </div>
+            )}
+
             <img
-              src={selectedImages[selectedImageIndex].src}
-              alt={selectedImages[selectedImageIndex].alt}
-              className="max-h-[86vh] max-w-[92vw] rounded-[18px] object-contain shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+              src={selectedImage.src}
+              alt={selectedImage.alt}
+              width={selectedImage.width}
+              height={selectedImage.height}
+              decoding="async"
+              className={`max-h-[88vh] max-w-[90vw] rounded-[18px] object-contain shadow-[0_18px_50px_rgba(0,0,0,0.28)] filter-none transition-opacity duration-300 ${
+                isImageLoading || hasImageError ? 'opacity-0' : 'opacity-100'
+              }`}
+              onLoad={() => {
+                setIsImageLoading(false)
+                setHasImageError(false)
+              }}
+              onError={() => {
+                setIsImageLoading(false)
+                setHasImageError(true)
+              }}
             />
 
             <button
               type="button"
-              className="absolute left-2 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-4xl font-bold text-white transition duration-200 hover:bg-black/70 sm:left-3"
+              className="absolute left-3 top-1/2 z-20 flex h-12 w-12 -translate-x-full -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-4xl font-bold text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-200 hover:scale-[1.08] hover:bg-black/60 sm:-left-[30px] sm:translate-x-0"
               aria-label="Ver foto anterior"
               onClick={showPreviousImage}
             >
@@ -236,7 +409,7 @@ function WorksSection() {
 
             <button
               type="button"
-              className="absolute right-2 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-4xl font-bold text-white transition duration-200 hover:bg-black/70 sm:right-3"
+              className="absolute right-3 top-1/2 z-20 flex h-12 w-12 translate-x-full -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-4xl font-bold text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-md transition duration-200 hover:scale-[1.08] hover:bg-black/60 sm:-right-[30px] sm:translate-x-0"
               aria-label="Ver foto siguiente"
               onClick={showNextImage}
             >
@@ -244,7 +417,7 @@ function WorksSection() {
             </button>
           </div>
         </div>
-      )}
+      ) : null}
     </Section>
   )
 }

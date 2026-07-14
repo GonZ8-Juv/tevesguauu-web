@@ -1,35 +1,70 @@
-import principalOne from '../assets/images/Principal 1.PNG'
-import principalTwo from '../assets/images/Principal 2.png'
-import principalThree from '../assets/images/Principal 3.PNG'
-import principalFour from '../assets/images/Principal 4.jpg'
-import principalFive from '../assets/images/Principal 5.jpg.jpeg'
+import principalOne from '../assets/images/optimized/works/full/principal-1.webp'
+import principalOneThumb from '../assets/images/optimized/works/thumbs/principal-1.webp'
+import principalTwo from '../assets/images/optimized/works/full/principal-2.webp'
+import principalTwoThumb from '../assets/images/optimized/works/thumbs/principal-2.webp'
+import principalThree from '../assets/images/optimized/works/full/principal-3.webp'
+import principalThreeThumb from '../assets/images/optimized/works/thumbs/principal-3.webp'
+import principalFour from '../assets/images/optimized/works/full/principal-4.webp'
+import principalFourThumb from '../assets/images/optimized/works/thumbs/principal-4.webp'
+import principalFive from '../assets/images/optimized/works/full/principal-5.webp'
+import principalFiveThumb from '../assets/images/optimized/works/thumbs/principal-5.webp'
 
 export type WorkImage = {
   src: string
+  thumbnailSrc: string
   alt: string
+  width: number
+  height: number
+  thumbnailWidth: number
+  thumbnailHeight: number
   featured?: boolean
 }
 
 export const workImages: WorkImage[] = [
   {
     src: principalOne,
+    thumbnailSrc: principalOneThumb,
     alt: 'Trabajo realizado de deslanado en TE VES GUAUU',
+    width: 1289,
+    height: 1269,
+    thumbnailWidth: 700,
+    thumbnailHeight: 689,
     featured: true,
   },
   {
     src: principalTwo,
-    alt: 'Mascota luego de una sesión de peluquería canina',
+    thumbnailSrc: principalTwoThumb,
+    alt: 'Mascota luego de una sesion de peluqueria canina',
+    width: 600,
+    height: 800,
+    thumbnailWidth: 525,
+    thumbnailHeight: 700,
   },
   {
     src: principalThree,
-    alt: 'Perro pequeño blanco luego de su arreglo de peluquería',
+    thumbnailSrc: principalThreeThumb,
+    alt: 'Perro pequeno blanco luego de su arreglo de peluqueria',
+    width: 1218,
+    height: 1521,
+    thumbnailWidth: 561,
+    thumbnailHeight: 700,
   },
   {
     src: principalFour,
-    alt: 'Golden retriever luego de su baño y cuidado de pelo',
+    thumbnailSrc: principalFourThumb,
+    alt: 'Golden retriever luego de su bano y cuidado de pelo',
+    width: 982,
+    height: 1600,
+    thumbnailWidth: 430,
+    thumbnailHeight: 700,
   },
   {
     src: principalFive,
-    alt: 'Perro pequeño con moño luego de su sesión de peluquería',
+    thumbnailSrc: principalFiveThumb,
+    alt: 'Perro pequeno con mono luego de su sesion de peluqueria',
+    width: 1080,
+    height: 1350,
+    thumbnailWidth: 560,
+    thumbnailHeight: 700,
   },
 ]
