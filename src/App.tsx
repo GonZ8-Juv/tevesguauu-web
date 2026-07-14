@@ -1,5 +1,12 @@
+import Layout from './components/layout/Layout'
+import Home from './pages/Home'
+
 function App() {
-  return <>TE VES GUAUU - Proyecto en desarrollo</>
+  return (
+    <Layout>
+      <Home />
+    </Layout>
+  )
 }
 
 export default App
