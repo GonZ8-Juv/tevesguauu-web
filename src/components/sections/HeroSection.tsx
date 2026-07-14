@@ -1,6 +1,6 @@
 import pinkCircle from '../../assets/images/Circulo rosa.png'
 import pawPrint from '../../assets/images/Huellas.png'
-import heroDog from '../../assets/images/Inicio hero.png'
+import heroDog from '../../assets/images/prueba def.png'
 import { hero } from '../../data/hero'
 import Badge from '../ui/Badge'
 import Button from '../ui/Button'
@@ -138,7 +138,7 @@ function HeroSection() {
                 <img
                   src={heroDog}
                   alt="Perro golden retriever feliz luego de una sesión de peluquería canina"
-                  className="mx-auto max-h-[300px] w-full max-w-[360px] translate-x-4 scale-100 object-contain sm:max-h-[340px] sm:max-w-[440px] sm:translate-x-6 md:max-h-[420px] md:max-w-[560px] md:translate-x-8 lg:max-h-[620px] lg:max-w-none lg:translate-x-0 lg:scale-[1.42] xl:max-h-[680px] xl:scale-[1.46]"
+                  className="mx-auto max-h-[330px] w-full max-w-[390px] translate-x-4 scale-[1.06] object-contain sm:max-h-[340px] sm:max-w-[440px] sm:translate-x-6 sm:scale-100 md:max-h-[420px] md:max-w-[560px] md:translate-x-8 lg:max-h-[620px] lg:max-w-none lg:translate-x-0 lg:scale-[1.42] xl:max-h-[680px] xl:scale-[1.46]"
                 />
               </div>
             </div>
