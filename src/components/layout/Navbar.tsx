@@ -44,7 +44,7 @@ function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         hasScrolled || isMenuOpen
           ? 'border-b border-[#D94A7F]/40 bg-[#E85A93]/90 shadow-[0_8px_28px_rgba(232,90,147,0.22)] backdrop-blur-xl'
           : 'border-b border-transparent bg-transparent shadow-none'
